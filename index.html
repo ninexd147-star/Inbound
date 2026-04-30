@@ -252,11 +252,10 @@
           <div class="field-label">Model</div>
           <div class="relative">
             <input list="model-list" id="model" class="field pr-8" placeholder="พิมพ์หรือเลือก Model…" autocomplete="off" />
-            <!-- custom arrow (native suppressed via CSS above) -->
             <svg class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
           <datalist id="model-list">
-            <!-- ดึงข้อมูล Model อัตโนมัติจาก Google Sheets -->
+            <!-- ข้อมูลดึงจาก Firebase แบบสายฟ้าแลบ -->
           </datalist>
         </div>
 
@@ -282,7 +281,7 @@
           <div class="field-label">Supplier</div>
           <input list="supplier-list" id="supplier" class="field" placeholder="ชื่อ Supplier…" autocomplete="off" />
           <datalist id="supplier-list">
-            <!-- ดึงข้อมูล Supplier อัตโนมัติจาก Google Sheets -->
+            <!-- ข้อมูลดึงจาก Firebase แบบสายฟ้าแลบ -->
           </datalist>
         </div>
 
@@ -377,13 +376,13 @@
 
   <div id="toast"></div>
 
-  <!-- เปลี่ยนสคริปต์ให้เป็น type="module" เพื่อรองรับ Firebase -->
+  <!-- เปลี่ยนสคริปต์ให้เป็น type="module" เพื่อรองรับ Firebase 100% -->
   <script type="module">
-    // 1. นำเข้า Firebase Modules
+    // 1. นำเข้า Firebase Modules แบบครบเซ็ต (เพิ่ม doc, getDoc สำหรับดึงข้อมูล)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-
+    // ตั้งค่าโปรเจกต์ Firebase ของคุณ
     const firebaseConfig = {
       apiKey: "AIzaSyDKnlB-dWr60Aanaa5g9Av7NdB9pIutcnw",
       authDomain: "advancedplus-stock.firebaseapp.com",
@@ -396,31 +395,38 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpSprTVoshZeFzQH-0rjmbzgDw18GZU2otPof_uZ-jxqug8ttTo7MzDBgoYBAhaJPx/exec"; 
-
-    // โหลดข้อมูล Model และ Supplier อัตโนมัติเมื่อเปิดเว็บ
+    // ========================================================
+    // ดึง Model และ Supplier จาก Firebase ตรงๆ (บอกลาความช้าของ Google Sheets)
+    // ========================================================
     async function loadInitialData() {
-      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("วาง_URL")) return;
       try {
-        const response = await fetch(APPS_SCRIPT_URL + "?action=getInitialData");
-        const data = await response.json();
-        
-        // อัปเดตรายการ Model
-        if (data.models && data.models.length > 0) {
-          const modelList = document.getElementById('model-list');
-          modelList.innerHTML = data.models.map(m => `<option value="${esc(m)}"></option>`).join('');
+        const docRef = doc(db, "system_settings", "dropdowns");
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // อัปเดตรายการ Model
+          if (data.models && data.models.length > 0) {
+            const modelList = document.getElementById('model-list');
+            modelList.innerHTML = data.models.map(m => `<option value="${esc(m)}"></option>`).join('');
+          }
+          
+          // อัปเดตรายการ Supplier
+          if (data.suppliers && data.suppliers.length > 0) {
+            const supplierList = document.getElementById('supplier-list');
+            supplierList.innerHTML = data.suppliers.map(s => `<option value="${esc(s)}"></option>`).join('');
+          }
+          console.log("⚡ โหลดข้อมูลจาก Firebase สำเร็จแบบสายฟ้าแลบ!");
+        } else {
+          console.log("ไม่พบเอกสาร dropdowns ใน Firebase");
         }
-        
-        // อัปเดตรายการ Supplier
-        if (data.suppliers && data.suppliers.length > 0) {
-          const supplierList = document.getElementById('supplier-list');
-          supplierList.innerHTML = data.suppliers.map(s => `<option value="${esc(s)}"></option>`).join('');
-        }
-        console.log("✅ โหลดข้อมูล Model และ Supplier สำเร็จ");
       } catch (error) {
-        console.error("❌ ไม่สามารถดึงข้อมูลจาก Sheets ได้:", error);
+        console.error("❌ ไม่สามารถดึงข้อมูลจาก Firebase ได้:", error);
       }
     }
+    
+    // เรียกใช้งานทันทีเมื่อเปิดหน้าเว็บ
     loadInitialData();
 
     // ========================================================
