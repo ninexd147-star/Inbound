@@ -447,35 +447,33 @@
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:60px;color:#c4c4cc;font-size:.85rem">⏳ กำลังดึงข้อมูลจาก Cloud...</td></tr>';
 
       try {
-        const cacheKey = makeCacheKey('inventory');
-    const data = await appCache.fetchData({
-      collection: 'inventory',
-      query: (q) => q.orderBy("timestamp", "desc"),
-      cacheKey: cacheKey,
-      forceRefresh: forceRefresh
-    });
-        masterData = [];
+        // ดึงข้อมูลจากคลังสินค้าโดยตรง (เหมือนหน้าอื่นๆ)
+        const snap = await db.collection("inventory")
+          .orderBy("timestamp", "desc")
+          .get();
 
+        masterData = [];
         const now = new Date();
 
-        data.forEach(doc => {
-          const docData = doc;
+        snap.forEach(doc => {
+          const d = doc.data();
 
           let duration = 0;
-          if (doc.timestamp) {
-            const docDate = doc.timestamp.toDate();
+          // คำนวณอายุสินค้า
+          if (d.timestamp) {
+            const docDate = d.timestamp.toDate();
             duration = Math.floor((now - docDate) / (1000 * 60 * 60 * 24));
           }
 
           masterData.push({
-            date_in: doc.date_in || '-',
-            model: doc.model || '-',
-            sn: doc.sn || doc.id,
+            date_in: d.date_in || '-',
+            model: d.model || '-',
+            sn: d.sn || doc.id,
             duration: duration,
-            last_updated: doc.last_updated || '-',
-            supplier: doc.supplier || '-',
-            invoice: doc.invoice || '-',
-            note: doc.note || '-'
+            last_updated: d.last_updated || '-',
+            supplier: d.supplier || '-',
+            invoice: d.invoice || '-',
+            note: d.note || '-'
           });
         });
 
@@ -487,7 +485,6 @@
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:60px;color:#ef4444;font-size:.85rem">❌ เชื่อมต่อล้มเหลว: ${error.message}</td></tr>`;
       }
     };
-
     document.getElementById('search-input').addEventListener('input', e => {
       const kw = e.target.value.toLowerCase().trim();
       const filtered = !kw ? masterData : masterData.filter(r =>
